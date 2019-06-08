@@ -3,7 +3,7 @@ class Node:
         self.val=val
         self.next=next
 
-def mergeLists(head1,head2):
+def mergeLinkedLists(head1,head2):
     """ To merge two lists in sorted order.\n
             [TC=O(n) or O(m)/SC=O(1)]
     """
@@ -43,7 +43,7 @@ def isSame(head1,head2):
         return False
     return True
 
-class List:
+class LinkedList:
     """ A Class to implement singly linked lists and associated functions""" 
     def __init__(self,lst):
         self.head=Node(lst[0])
@@ -53,6 +53,51 @@ class List:
             head.next=Node(i)
             head=head.next
 
+    def __add__(self,other):
+        """ To merge two lists in sorted order.\n
+            [TC=O(n) or O(m)/SC=O(1)]
+        """
+        head1 = self.head
+        head2 = other.head
+        if not head1:
+            return head2
+        if not head2:
+            return head1
+        prevNode=None
+        combHead=head1
+        while(head1 and head2):
+            if head1.val<=head2.val:
+                prevNode=head1
+                head1=head1.next
+            else:
+                nextNode=head2.next
+                head2.next=head1
+                if not prevNode:
+                    combHead=head2  
+                else:
+                    prevNode.next=head2
+                prevNode=head2
+                head2=nextNode
+        if head2:
+            prevNode.next=head2
+        self.head = combHead
+        return combHead
+
+    def __eq__(self,other):
+        """ To check if two lists are some(elementwise and lengthwise).\n
+            [TC=O(n)/SC=O(1)]
+        """
+        head1 = self.head
+        head2 = other.head
+        while head1 and head2:
+            if head1.val!=head2.val:
+                return False
+            head1=head1.next
+            head2=head2.next
+        if head1 or head2:
+            return False
+        return True
+
     def retEnd(self,head=None):
         """ To return the end node of linked list.  [TC=O(n)/SC=O(1)]"""
         if not head:            
@@ -61,17 +106,17 @@ class List:
             head=head.next
         return head
 
-    def insertNode(self,val,beg=True,sorted=False,doSort=False):
+    def insertNode(self,val,beg=True,in_sorted_order=False,doSort=False):
         """ To insert a node in the linked list at:\n
             begining: default       [TC=O(n)/SC=O(1)]\n
             ending: pass->beg=False [TC=O(n)/SC=O(1)]\n
-            in sorted order: if list is sorted pass->sorted=True    [TC=O(n)/SC=O(1)]\n
-                             else pass->sorted=True,doSort=True     [TC=O(nlogn)/SC=O(n)]
+            in sorted order: if list is sorted pass->in_sorted_order=True    [TC=O(n)/SC=O(1)]\n
+                             else pass->in_sorted_order=True,doSort=True     [TC=O(nlogn)/SC=O(n)]
         """
-        if sorted:
+        if in_sorted_order:
             if doSort:
-                self.head=self.mergeSortList(self.head)
-            self.head=mergeLists(self.head,Node(val))
+                self.head=self.mergeSortLinkedList(self.head)
+            self.head=mergeLinkedLists(self.head,Node(val))
             return
         if beg:
             newnode=Node(val,self.head)
@@ -121,8 +166,9 @@ class List:
                     head=head.next
                 else:
                     break
-            del head.next
+            temp=head.next
             head.next=None
+            del temp
             self.len-=1
         return True
 
@@ -134,23 +180,16 @@ class List:
             head=self.head
         prevNode=None
         nextNode=None
-        combHead=head
         newEnd=head
         while(head):
-            if head.next:
-                nextNode=head.next
-                head.next=prevNode
-                prevNode=head
-                head=nextNode
-            else:
-                head.next=prevNode
-                combHead=head
-                # head=head.next
-                break
+            nextNode=head.next
+            head.next=prevNode
+            prevNode=head
+            head=nextNode
         if retEndNode:
-            return combHead,newEnd
+            return prevNode,newEnd
         else:
-            return combHead
+            return prevNode
 
     def reverseK(self,head=None,k=0):
         """ To reverse the linked list in group of k size.\n
@@ -171,11 +210,9 @@ class List:
                 newBeg,head=self.reverse(start,retEndNode=True)
                 if not combHead:
                     combHead=newBeg
-                if not prevNode:
-                    prevNode=head
-                else:
+                if prevNode:
                     prevNode.next=newBeg
-                    prevNode=head
+                prevNode=head
                 head.next=nextNode
                 start=nextNode
                 count=0
@@ -187,11 +224,9 @@ class List:
                     newBeg,head=self.reverse(start,retEndNode=True)
                     if not combHead:
                         combHead=newBeg
-                    if not prevNode:
-                        prevNode=head
-                    else:
+                    if prevNode:
                         prevNode.next=newBeg
-                        prevNode=head
+                    prevNode=head
                     # head.next=nextNode
                     # start=nextNode
                     # count=0
@@ -205,15 +240,22 @@ class List:
         if not head:
             head=self.head
         midHead=self.midNode(head,sever=True)
+        orgMidHead = None
+        # For odd length list middle node should not be taken
+        if self.len%2!=0:
+            orgMidHead = midHead
+            midHead = midHead.next
         midHead=self.reverse(midHead)
         if isSame(head,midHead):
-            endNode=self.retEnd(head)
-            endNode.next=self.reverse(midHead)
-            return True
+            res = True
         else:
-            endNode=self.retEnd(head)
-            endNode.next=self.reverse(midHead)
-            return False
+            res = False
+        endNode=self.retEnd(head)
+        if orgMidHead:
+            endNode.next = orgMidHead
+            endNode = orgMidHead
+        endNode.next=self.reverse(midHead)
+        return res
         
     def evenOdd(self,head=None):
         """A function to segregate even and odd numbers in the linked list.\n
@@ -222,43 +264,39 @@ class List:
         if not head:
             head=self.head
         oddHead=None
-        prevNode=None
-        combHead=head
+        prevOddNode=None
+        prevEvenNode=None
+        combHead=None
         while(head):
             if head.val%2!=0:
                 if not oddHead:
                     oddHead=head
-                    head2=oddHead
+                if not prevOddNode:
+                    prevOddNode = head
                 else:
-                    head2.next=head
-                    head2=head
-                if not prevNode:
-                    combHead=head.next
-                else:
-                    if head.next:
-                        prevNode.next=head.next
-                    else:
-                        prevNode.next=None
-                head.next=None
-                if prevNode:
-                    head=prevNode.next
-                else:
-                    head=combHead
+                    prevOddNode.next = head
+                    prevOddNode = head
             else:
-                prevNode=head
-                head=head.next
-        prevNode.next=oddHead
+                if not combHead:
+                    combHead = head
+                if not prevEvenNode:
+                    prevEvenNode = head
+                else:
+                    prevEvenNode.next = head
+                    prevEvenNode = head
+            head=head.next
+        prevEvenNode.next=oddHead
         return combHead
 
-    def mergeSortList(self,head):
+    def mergeSortLinkedList(self,head):
         """ To sort the linked list inplace.\n
             [TC=O(nlogn)/SC=O(n)]"""
         if not head or not head.next:
             return head
         secondHead=self.midNode(head,True)
-        head=self.mergeSortList(head)
-        secondHead=self.mergeSortList(secondHead)
-        return mergeLists(head,secondHead)
+        head=self.mergeSortLinkedList(head)
+        secondHead=self.mergeSortLinkedList(secondHead)
+        return mergeLinkedLists(head,secondHead)
 
     def show(self,beg=True,head=None):
         """ Display the linked list from:\n
@@ -297,11 +335,11 @@ class List:
                 prevNode.next=None
             return slow
 
-    def loopList(self,findStart=False,findLength=False):
+    def loopLinkedList(self,findStart=False,findLength=False):
         """ A function which finds whether the passed list contain cycle or not.\n
             Parameters:\n
             lst: Head of singly linked list which needed to be checked.   \n
-                (type-List[ADT])\n
+                (type-LinkedList[ADT])\n
             findStart: To return the start of the cycle(if found)\n
                     (type-bool)\n
             findLength: To return the length of the cycle(if found)\n
@@ -348,8 +386,8 @@ class List:
         return (cycleExist,start,count)
 
 def main():
-    lst=List([5,2,7,4,11,33,22,8])
-    print('List:')
+    lst=LinkedList([5,2,7,4,11,33,22,8])
+    print('LinkedList:')
     lst.show()
 
     print('From end:')
@@ -369,11 +407,11 @@ def main():
     print(f"MidNode of linked list: {lst.midNode(lst.head).val}")
     
     print("Sorting the linked list...")
-    lst.head=lst.mergeSortList(lst.head)
+    lst.head=lst.mergeSortLinkedList(lst.head)
     lst.show()
     
     print(f"Inserting 10 in sorted order...")
-    lst.insertNode(10,sorted=True)
+    lst.insertNode(10,in_sorted_order=True)
     lst.show()
 
     print("Reversing list in pairs...")
@@ -384,21 +422,21 @@ def main():
     lst.head=lst.evenOdd(lst.head)
     lst.show()
     
-    print("Checking if list is palindrome...")
-    print(lst.isPalindrome(lst.head))
-    lst=List([1,2,3,3,2,1])
+    # print("Checking if list is palindrome...")
+    # print(lst.isPalindrome(lst.head))
+    lst=LinkedList([1,2,3,2,1])
     lst.show()
     print("Checking if list is palindrome...")
     print(lst.isPalindrome(lst.head))
-    
+    lst.show()
     print("Checking for loop...")
-    if not lst.loopList()[0]:
+    if not lst.loopLinkedList()[0]:
         print('No loop found.')
     print(f"Joining end of link list to node with value {lst.head.next.next.val}...")
     end=lst.retEnd()
     end.next=lst.head.next.next
     print("Checking for loop...")
-    loop,start,length=lst.loopList(findStart=True,findLength=True)
+    loop,start,length=lst.loopLinkedList(findStart=True,findLength=True)
     if loop:
         print(f"Loop found at node {start.val} and has length {length}")
 
